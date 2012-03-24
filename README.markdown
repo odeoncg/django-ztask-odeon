@@ -10,8 +10,11 @@ Installing
 ==========
 
 Install the required packages (preferably using your distribution's package manager):
+
 - [zeromq](http://www.zeromq.org)
+
 - [pyzmq](http://www.zeromq.org/bindings:python)
+
 - [South](http://south.aeracode.org/)
 
 Install django-ztask.
