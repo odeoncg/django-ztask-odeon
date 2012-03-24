@@ -20,30 +20,81 @@ import traceback
 import logging
 import pickle
 import datetime, time
- 
+import os
+import signal
+from pprint import pprint
+
+STOP_REQUESTED = False
+
+def signal_handler(signum, frame):
+    global STOP_REQUESTED
+    STOP_REQUESTED = True
+
 class Command(BaseCommand):
     option_list = BaseCommand.option_list + (
         make_option('--noreload', action='store_false', dest='use_reloader', default=True, help='Tells Django to NOT use the auto-reloader.'),
         make_option('-f', '--logfile', action='store', dest='logfile', default=None, help='Tells ztaskd where to log information. Leaving this blank logs to stderr'),
         make_option('-l', '--loglevel', action='store', dest='loglevel', default='info', help='Tells ztaskd what level of information to log'),
         make_option('--replayfailed', action='store_true', dest='replay_failed', default=False, help='Replays all failed calls in the db'),
+        make_option('--pidfile', action='store', dest='pidfile', default=None, help='PID file'),
+        make_option('--stop', action='store_true', dest='stop_requested', default=False, help='stop the ztaskd server indicated by pidfile'),
     )
     args = ''
     help = 'Start the ztaskd server'
     func_cache = {}
     io_loop = None
+
+    def _request_stop(self):
+        if not self.pidfile:
+            print "error: no pidfile specified"
+            exit(1)
+        try:
+            pid = int(open(self.pidfile).read())
+        except:
+            print 'error: missing pidfile'
+        try:
+            os.kill(pid, signal.SIGTERM)
+            while(True):
+                time.sleep(1)
+                if not os.path.exists(self.pidfile):
+                    break
+        except: #process does not exist
+            pass
     
     def handle(self, *args, **options):
         self._setup_logger(options.get('logfile', None), options.get('loglevel', 'info'))
         use_reloader = options.get('use_reloader', True)
         replay_failed = options.get('replay_failed', False)
+        self.pidfile = options.get('pidfile', None)
+        self.stop_check_interval = 5
+        stop_requested = options.get('stop_requested', None)
+        signal.signal(signal.SIGTERM, signal_handler)
+        if stop_requested:
+            self._request_stop()
+            return
         if use_reloader:
             autoreload.main(lambda: self._handle(use_reloader, replay_failed))
         else:
             self._handle(use_reloader, replay_failed)
     
+    def _write_pidfile(self):
+        fp = open(self.pidfile, 'w')
+        fp.write("%d\n" % os.getpid())
+        fp.close()
+
+    def _stop(self):
+        if STOP_REQUESTED:
+            self.io_loop.stop()
+            while(self.io_loop.running()):
+                time.sleep(1)
+            self.logger.info("Server stoped with SIGTERM")
+            os.remove(self.pidfile)
+        else:
+            self.io_loop.add_timeout(datetime.timedelta(seconds=self.stop_check_interval), self._stop)
+
     def _handle(self, use_reloader, replay_failed):
         self.logger.info("%sServer starting on %s." % ('Development ' if use_reloader else '', settings.ZTASKD_URL))
+        self._write_pidfile()
         self._on_load()
         
         socket = context.socket(PULL)
@@ -85,6 +136,7 @@ class Command(BaseCommand):
         
         self.io_loop = ioloop.IOLoop.instance()
         self.io_loop.add_handler(socket, _queue_handler, self.io_loop.READ)
+        self.io_loop.add_timeout(datetime.timedelta(seconds=self.stop_check_interval), self._stop)
         self.io_loop.start()
     
     def p(self, txt):
