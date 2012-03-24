@@ -74,6 +74,14 @@ The `ztaskd` command takes a series of command-line arguments:
   logged as failed. Passing in `--replayfailed` will cause all 
   failed tasks to be re-run.
 
+- `--pidfile`
+
+  The file to write the PID to. Required for stopping the daemon.
+
+- `--stop`
+
+  Stop the ztaskd instance indicated by `--pidfile`. The pidfile should be
+  the same passed as an argument when the ztaskd server was started
 
 Settings
 --------
@@ -226,4 +234,4 @@ If you wanted to do this and other things, you could write your own function, an
 
 TODOs and BUGS
 ==============
-See: [http://github.com/dmgctrl/django-ztask/issues](http://github.com/dmgctrl/django-ztask/issues)
+See: [http://github.com/odeoncg/django-ztask-odeon/issues](http://github.com/odeoncg/django-ztask-odeon/issues)
