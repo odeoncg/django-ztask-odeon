@@ -1,28 +1,20 @@
-IMPORTANT: READ ME
-==================
+About
+=====
 
-In version 0.1.4, we are introducing two major changes:
+django-ztask is a lightweight asynchronous task queue for Django based on zeromq.
+It appeared as a [quick hack](http://www.zeromq.org/story:3) but proved to be a simple, solid and highly hackable alternative to [celery](http://celeryproject.org/).
 
-1. Tasks now have a `created` datetime field. This was added to make sure `--replayfailed` replayed tasks in the appropriate order
-2. Introduced [South](http://south.aeracode.org/) migrations.
-
-IF YOU HAVE ALREADY INSTALLED `django-ztask` - you can "fake" the first migration, and then run the second migration:
-
-    ./manage.py migrate django_ztask --fake 0001
-    ./manage.py migrate django_ztask
-    
-If you are not using [South](http://south.aeracode.org/) in your Django project, it is strongly recommended you do. If you
-are not, you will have to add the "created" field to your database manually.
+This is a fork of of the [original project](https://github.com/dmgctrl/django-ztask) which seems unmaintained for almost an year.
 
 Installing
 ==========
 
-Download and install 0MQ version 2.1.3 or better from [http://www.zeromq.org](http://www.zeromq.org)
+Install the required packages (preferably using your distribution's package manager):
+- [zeromq](http://www.zeromq.org)
+- [pyzmq](http://www.zeromq.org/bindings:python)
+- [South](http://south.aeracode.org/)
 
-Install pyzmq and django-ztask using PIP:
-
-    pip install pyzmq
-    pip install -e git+git@github.com:dmgctrl/django-ztask.git#egg=django_ztask
+Install django-ztask.
 
 Add `django_ztask` to your `INSTALLED_APPS` setting in `settings.py`
 
@@ -31,9 +23,9 @@ Add `django_ztask` to your `INSTALLED_APPS` setting in `settings.py`
         'django_ztask',
     )
 
-Then run `syncdb`
+Then apply the South migrations:
 
-    python manage.py syncdb
+    ./manage.py migrate django-ztask
     
 
 Running the server
@@ -128,7 +120,7 @@ Ubuntu 10.04 and Ubuntu 10.10:
 
     #!/bin/bash -e
     pushd /var/www/path/to/site
-    sudo -u www-data python manage.py ztaskd --noreload -f /var/log/ztaskd.log &
+    sudo -u www-data python manage.py ztaskd --noreload -f /var/log/ztaskd.log --pidfile /var/run/ztask.pid &
     popd
 
 
