@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# you need to make the PIDFILE and LOGFILE dirs and insure it has the right permissions
+# you need to create the directories for PIDFILE and LOGFILE and give them the necessary permissions
 PIDFILE="/var/run/ztask/ztask.pid"
 LOGFILE="/var/log/ztask/ztask.log"
 WORKDIR=`dirname "$0"`
