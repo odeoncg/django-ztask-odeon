@@ -15,6 +15,7 @@ get_lock() {
  # usage:
  # get_lock lockdir
  # function adapted from http://wiki.bash-hackers.org/howto/mutex
+ 
  lockdir="$1"
  pidfile="$lockdir/get_lock.pid"
 
@@ -24,21 +25,11 @@ get_lock() {
  ENO_LOCKFAIL=2; ETXT[2]="ENO_LOCKFAIL"
  ENO_RECVSIG=3; ETXT[3]="ENO_RECVSIG"
 
- #trap 'ECODE=$?; echo "[get_lock] Exit: ${ETXT[ECODE]}($ECODE)" >&2' 0
- #echo -n "[get_lock] Locking: " >&2
-
  if mkdir "${lockdir}" &>/dev/null; then
-  # lock succeeded, install signal handlers before storing the PID just in case 
-  # storing the PID fails
-  #trap 'ECODE=$?;
-  #echo "[get_lock] Removing lock. Exit: ${ETXT[ECODE]}($ECODE)" >&2
-  #rm -rf "${lockdir}"' 0
   echo "$$" >"${pidfile}" 
   # the following handler will exit the script on receiving these signals
-  # the trap on "0" (EXIT) from above will be triggered by this trap's "exit" command!
   trap 'echo "[get_lock] Killed by a signal." >&2
   exit ${ENO_RECVSIG}' 1 2 3 15
-  #echo "success, installed signal handlers"
  else
   # lock failed, now check if the other PID is alive
   OTHERPID="$(cat "${pidfile}")"
@@ -55,8 +46,7 @@ get_lock() {
    # lock is stale, remove it and restart
    echo "removing stale lock of nonexistant PID ${OTHERPID}" >&2
    rm -rf "${lockdir}"
-   echo "[get_lock] restarting myself" >&2
-   #exec "$0" "$@"
+   # restart the locking
    get_lock "${lockdir}"
   else
    # lock is valid and OTHERPID is active - exit, we're locked!
