@@ -3,19 +3,6 @@ from django.db.models import *
 import uuid
 import datetime
 
-class QuerySetManager(Manager):
-    def __getattr__(self, attr, *args):
-        try:
-            return getattr(self.__class__, attr, *args)
-        except AttributeError:
-            return getattr(self.get_query_set(), attr, *args)
-    
-    def get_query_set(self):
-        return self.model.QuerySet(self.model)
-    
-
-#
-#
 class Task(Model):
     uuid = CharField(max_length=36, primary_key=True)
     function_name = CharField(max_length=255)

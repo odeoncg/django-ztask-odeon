@@ -6,6 +6,14 @@ It appeared as a [quick hack](http://www.zeromq.org/story:3) but proved to be a 
 
 This is a fork of of the [original project](https://github.com/dmgctrl/django-ztask) which seems unmaintained for almost an year.
 
+New features:
+
+- `stop` command
+
+- parallel processing of tasks
+
+- checking the server status before sending a task (the task is executed in-process if ztaskd is not available)
+
 Installing
 ==========
 
@@ -44,12 +52,10 @@ Command-line arguments
 
 The `ztaskd` command takes a series of command-line arguments:
 
-- `--noreload`
+- `-f` or `--logfile`
   
-  By default, `ztaskd` will use the built-in Django reloader 
-  to reload the server whenever a change is made to a python file. Passing
-  in `--noreload` will prevent it from listening for changed files.
-  (Good to use in production.)
+  The file to log messages to. By default, all messages are logged
+  to `stdout`
 
 - `-l` or `--loglevel`
   
@@ -57,10 +63,16 @@ The `ztaskd` command takes a series of command-line arguments:
   `INFO`, `DEBUG`, or `NOTSET`. If this argument isn't passed 
   in, `INFO` is used by default.
 
-- `-f` or `--logfile`
+- `--pidfile`
+
+  The file to write the PID to. Required for stopping the daemon.
+
+- `--noreload`
   
-  The file to log messages to. By default, all messages are logged
-  to `stdout`
+  By default, `ztaskd` will use the built-in Django reloader 
+  to reload the server whenever a change is made to a python file. Passing
+  in `--noreload` will prevent it from listening for changed files.
+  (Good to use in production.)
 
 - `--replayfailed`
   
@@ -69,9 +81,10 @@ The `ztaskd` command takes a series of command-line arguments:
   logged as failed. Passing in `--replayfailed` will cause all 
   failed tasks to be re-run.
 
-- `--pidfile`
+- `--workers`
 
-  The file to write the PID to. Required for stopping the daemon.
+  Number of worker processes. Defaults to the number of available CPUs/cores
+  as reported by the operating system.
 
 - `--stop`
 
@@ -86,7 +99,17 @@ your Django project. These are the settings and their defaults
 
     ZTASKD_URL = 'tcp://127.0.0.1:5555'
 
-By default, `ztaskd` will run over TCP, listening on 127.0.0.1 port 5555. 
+By default, `ztaskd` will run over TCP, listening on 127.0.0.1 port 5555.
+
+    ZTASKD_ALIVE_URL = 'tcp://127.0.0.1:5556'
+
+The URL on which `ztaskd` listens for 'alive' requests (used by the decorator
+to decide whether to send the task or run it in-process).
+
+    ZTASKD_ALIVE_TIMEOUT = 1000
+
+Number of milliseconds to wait for an 'alive' reply. If the timeout is reached and
+no reply was received, the server is considered dead.
 
     ZTASKD_ALWAYS_EAGER = False
 
@@ -127,8 +150,8 @@ Ubuntu 10.04 and Ubuntu 10.10:
     popd
 
 
-Making functions in to tasks
-============================
+Making functions into tasks
+===========================
 
 Decorators and function extensions make tasks able to run. 
 Unlike some solutions, tasks can be in any file anywhere. 
@@ -139,7 +162,7 @@ When the file is imported, `ztaskd` will register the task for running.
 ([Read more about pickling here](http://docs.python.org/tutorial/inputoutput.html#the-pickle-module))
 
 It is a recommended best practice that instead of passing a Django model object 
-to a task, you intead pass along the model's ID or primary key, and re-get 
+to a task, you instead pass along the model's ID or primary key, and re-get 
 the object in the task function.
 
 The @task Decorator
@@ -161,13 +184,18 @@ Any function can be called in one of three ways:
 
 - `func.async(*args, **kwargs)`
 
-  Calling a function with `.async` will cause the function task to be called asyncronously 
-  on the ztaskd server. For backwards compatability, `.delay` will do the same thing as `.async`, but is deprecated.
+  Calling a function with `.async` will cause the function task to be called asynchronously 
+  on the ztaskd server. If the server is not available (not responding to 'alive' requests
+  within `ZTASKD_ALIVE_TIMEOUT` milliseconds), the function will be called directly, in-process.
+  It is your responsibility to make sure that `func` won't block the worker process.
+  
+  For backwards compatibility, `.delay` will do the same thing as `.async`, but is deprecated.
 
 - `func.after(seconds, *args, **kwargs)`
 
   This will cause the task to be sent to the `ztaskd` server, which will wait `seconds` 
-  seconds to execute.
+  seconds to execute. If the server is not available, the requested delay is ignored and
+  the function is called directly just like it's done for `func.async()`
 
 
 Example
