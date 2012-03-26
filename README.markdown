@@ -162,6 +162,8 @@ stopping the server: wait until the server has been stopped. Restarts, however, 
 
     ./ztask_server.sh restart &
 
+You can run many 'restart' jobs in parallel. There's file locking to ensure proper behavior.
+
 Making functions into tasks
 ===========================
 
