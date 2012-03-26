@@ -99,7 +99,24 @@ class Command(BaseCommand):
                     break
         except: #process does not exist
             pass
-    
+
+    def _handle_pidfile(self):
+        if self.pidfile:
+            if os.path.exists(self.pidfile):
+                # the pidfile exists. let's see if the process it points to is running
+                with open(self.pidfile) as f:
+                    pid = f.read()
+                    pid = int(pid.strip())
+                    try:
+                        os.kill(pid, 0)
+                    except OSError:
+                        # not running
+                        print 'deleting stale pid file'
+                        os.remove(self.pidfile)
+                    else:
+                        print 'Server already running. Giving up.'
+                        exit(1)
+
     def handle(self, *args, **options):
         self._setup_logger(options['logfile'], options['loglevel'])
         replay_failed = options['replay_failed']
@@ -117,6 +134,7 @@ class Command(BaseCommand):
             self._request_stop()
             return
         signal.signal(signal.SIGTERM, signal_handler)
+        self._handle_pidfile()
         self.daemonize = options['daemonize']
         if self.daemonize:
             become_daemon()
@@ -146,13 +164,14 @@ class Command(BaseCommand):
             while(io_loop.running()):
                 time.sleep(1)
             logger.info("Server stoped with SIGTERM")
-            os.remove(self.pidfile)
+            if self.pidfile:
+                os.remove(self.pidfile)
         else:
             io_loop.add_timeout(datetime.timedelta(seconds=self.stop_check_interval), self._stop)
 
     def _handle(self, use_reloader, replay_failed):
-        logger.info("%sServer starting on %s." % ('Development ' if use_reloader else '', settings.ZTASKD_URL))
         self._write_pidfile()
+        logger.info("%sServer starting on %s." % ('Development ' if use_reloader else '', settings.ZTASKD_URL))
         self._on_load()
         
         self.context = zmq.Context()
