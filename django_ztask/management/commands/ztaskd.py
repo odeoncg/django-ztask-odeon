@@ -16,6 +16,7 @@ import os
 import signal
 from pprint import pprint
 import multiprocessing
+from django.utils.daemonize import become_daemon
 
 STOP_REQUESTED = False
 logger = None
@@ -72,7 +73,8 @@ class Command(BaseCommand):
         make_option('-f', '--logfile', action='store', dest='logfile', default=None, help='Tells ztaskd where to log information. Leaving this blank logs to stderr'),
         make_option('-l', '--loglevel', action='store', dest='loglevel', default='info', help='Tells ztaskd what level of information to log'),
         make_option('--pidfile', action='store', dest='pidfile', default=None, help='PID file'),
-        make_option('--noreload', action='store_false', dest='use_reloader', default=True, help='Tells Django to NOT use the auto-reloader.'),
+        make_option('--noreload', action='store_false', dest='use_reloader', default=True, help='Tells Django to NOT use the auto-reloader'),
+        make_option('--daemonize', action='store_true', dest='daemonize', default=False, help='Become a daemon'),
         make_option('--replayfailed', action='store_true', dest='replay_failed', default=False, help='Replays all failed calls in the db'),
         make_option('--workers', action='store', dest='workers', default=None, help='Number of worker processes. Defaults to %d' % multiprocessing.cpu_count()),
         make_option('--stop', action='store_true', dest='stop_requested', default=False, help='stop the ztaskd server indicated by pidfile'),
@@ -99,10 +101,10 @@ class Command(BaseCommand):
             pass
     
     def handle(self, *args, **options):
-        self._setup_logger(options.get('logfile', None), options.get('loglevel', 'info'))
-        use_reloader = options.get('use_reloader', True)
-        replay_failed = options.get('replay_failed', False)
-        self.pidfile = options.get('pidfile', None)
+        self._setup_logger(options['logfile'], options['loglevel'])
+        replay_failed = options['replay_failed']
+        use_reloader = options['use_reloader']
+        self.pidfile = options['pidfile']
         self.workers = options['workers']
         if self.workers:
             self.workers = int(self.workers)
@@ -110,11 +112,14 @@ class Command(BaseCommand):
             # avoid a value of 0
             self.workers = None
         self.stop_check_interval = 1
-        stop_requested = options.get('stop_requested', None)
+        stop_requested = options['stop_requested']
         if stop_requested:
             self._request_stop()
             return
         signal.signal(signal.SIGTERM, signal_handler)
+        self.daemonize = options['daemonize']
+        if self.daemonize:
+            become_daemon()
         # close the db connection before spawning the pool workers so each gets a new one
         db.close_connection()
         global pool

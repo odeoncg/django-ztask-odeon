@@ -14,6 +14,8 @@ New features:
 
 - checking the server status before sending a task (the task is executed in-process if ztaskd is not available)
 
+- daemonize support
+
 Installing
 ==========
 
@@ -74,6 +76,10 @@ The `ztaskd` command takes a series of command-line arguments:
   in `--noreload` will prevent it from listening for changed files.
   (Good to use in production.)
 
+- `--daemonize`
+
+  Make the server a daemon. Disabled by default.
+
 - `--replayfailed`
   
   If a command has failed more times than allowed in the 
@@ -89,7 +95,8 @@ The `ztaskd` command takes a series of command-line arguments:
 - `--stop`
 
   Stop the ztaskd instance indicated by `--pidfile`. The pidfile should be
-  the same passed as an argument when the ztaskd server was started
+  the same passed as an argument when the ztaskd server was started.
+  This command will wait until the server is stopped.
 
 Settings
 --------
@@ -146,7 +153,7 @@ Ubuntu 10.04 and Ubuntu 10.10:
 
     #!/bin/bash -e
     pushd /var/www/path/to/site
-    sudo -u www-data python manage.py ztaskd --noreload -f /var/log/ztaskd.log --pidfile /var/run/ztask.pid &
+    sudo -u www-data python manage.py ztaskd --noreload -f /var/log/ztaskd.log --pidfile /var/run/ztask.pid --daemonize
     popd
 
 
