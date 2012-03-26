@@ -8,7 +8,7 @@ This is a fork of of the [original project](https://github.com/dmgctrl/django-zt
 
 New features:
 
-- `stop` command
+- `stop` command and init script helper: `ztask_server.sh`
 
 - parallel processing of tasks
 
@@ -46,7 +46,7 @@ Running the server
 
 Run django-ztask using the manage.py command:
 
-    python manage.py ztaskd
+    ./manage.py ztaskd
 
 
 Command-line arguments
@@ -147,15 +147,20 @@ starts. This is implemented to support several possible Django setup scenarios w
 Running in production
 ---------------------
 
-A recommended way to run in production would be to put something similar to 
-the following in to your `rc.local` file. This example has been tested on 
-Ubuntu 10.04 and Ubuntu 10.10:
+The recommended way to run ztaskd in production is through the `ztask_server.sh` shell script:
 
-    #!/bin/bash -e
-    pushd /var/www/path/to/site
-    sudo -u www-data python manage.py ztaskd --noreload -f /var/log/ztaskd.log --pidfile /var/run/ztask.pid --daemonize
-    popd
+    ./ztask_server.sh start
+    ./ztask_server.sh restart
+    ./ztask_server.sh stop
 
+Make sure that the logging and pidfile directories exist and can be written into by the user
+running the script.
+
+The `stop` command (and implicitly `restart`) is synchronous. Usually this is what you want when
+stopping the server: wait until the server has been stopped. Restarts, however, can be asynchronous
+(like when restarting ztaskd from a git hook) and in this case we would run the script in background:
+
+    ./ztask_server.sh restart &
 
 Making functions into tasks
 ===========================
