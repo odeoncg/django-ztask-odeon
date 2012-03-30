@@ -50,7 +50,7 @@ def call_function(task_id, function_name=None, args=None, kwargs=None):
         logger.info('Called %s successfully' % function_name)
         Task.objects.get(pk=task_id).delete()
     except Exception, e:
-        logger.error('Error calling %s. Details:\n%s' % (function_name, e))
+        logger.error('Error calling "%s":\n%s' % (function_name, traceback.format_exc(e)))
         try:
             task = Task.objects.get(pk=task_id)
             task.failed = datetime.datetime.utcnow()
@@ -62,8 +62,7 @@ def call_function(task_id, function_name=None, args=None, kwargs=None):
                 task.save()
                 call_function(task.pk)
         except Exception, e2:
-            logger.error('Error capturing exception in call_function. Details:\n%s' % e2)
-        traceback.print_exc(e)
+            logger.error('Error capturing exception in call_function for "%s":\n%s' % (function_name, traceback.format_exc(e2)))
     
 def replay_task_callback_factory(*args, **kwargs):
     return lambda: pool.apply_async(call_function, args, kwargs)
@@ -200,8 +199,7 @@ class Command(BaseCommand):
                 else:
                     pool.apply_async(call_function, [task.pk], dict(function_name=function_name, args=args, kwargs=kwargs))
             except Exception, e:
-                logger.error('Error setting up function. Details:\n%s' % e)
-                traceback.print_exc(e)
+                logger.error('Error setting up function "%s":\n"%s"' % (function_name, traceback.format_exc(e)))
         
         def _alive_handler(alive_socket, *args, **kwargs):
             request = alive_socket.recv()
