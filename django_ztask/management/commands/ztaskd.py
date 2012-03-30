@@ -10,13 +10,17 @@ from optparse import make_option
 import sys
 import traceback
 import logging
-import pickle
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 import datetime, time
 import os
 import signal
 from pprint import pprint
 import multiprocessing
 from django.utils.daemonize import become_daemon
+import base64
 
 STOP_REQUESTED = False
 logger = None
@@ -33,8 +37,8 @@ def call_function(task_id, function_name=None, args=None, kwargs=None):
             try:
                 task = Task.objects.get(pk=task_id)
                 function_name = task.function_name
-                args = pickle.loads(str(task.args))
-                kwargs = pickle.loads(str(task.kwargs))
+                args = pickle.loads(base64.b64decode(task.args))
+                kwargs = pickle.loads(base64.b64decode(task.kwargs))
             except Exception, e:
                 logger.info('Could not get task with id %s:\n%s' % (task_id, e))
                 return
@@ -186,10 +190,12 @@ class Command(BaseCommand):
                 if function_name == 'ztask_log':
                     logger.warn('%s: %s' % (args[0], args[1]))
                     return
+                pickled_args = base64.b64encode(pickle.dumps(args, -1))
+                pickled_kwargs = base64.b64encode(pickle.dumps(kwargs, -1))
                 task = Task.objects.create(
                     function_name=function_name, 
-                    args=pickle.dumps(args), 
-                    kwargs=pickle.dumps(kwargs), 
+                    args=pickled_args,
+                    kwargs=pickled_kwargs,
                     retry_count=settings.ZTASKD_RETRY_COUNT,
                     next_attempt=time.time() + after
                 )
